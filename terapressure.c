@@ -1,6 +1,6 @@
 /*********************************************************
  * Terapressure 0.1
- * Exercise from Majdi MPI course for SSD on 05/20/2016
+ * Exercise MPI course on 05/20/2016
  * Author: Santiago
  * Date: That weekend.
  * 
