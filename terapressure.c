@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
       if (i==0) {
         neighbor = B[myi-1][myj]; 
         MPI_Send(&center, 1, MPI_DOUBLE, neighbor, 0, MPI_COMM_WORLD);
-        MPI_Recv(&top, 1, MPI_DOUBLE, neighbor, 0, MPI_COMM_WORLD,MPI_STATUS_IGNORE);      
+        MPI_Recv(&top, 1, MPI_DOUBLE, neighbor, 0, MPI_COMM_WORLD, 0);      
         //printf("%2d: send to   %d (%d,%d): %.2f\n", myid, neighbor,I,J,center);
         //printf("%2d: recv from %d (%d,%d): %.2f\n", myid, neighbor,I-1,J,top);
       } else {
@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
       if (i==bi-1) {
         neighbor = B[myi+1][myj];
         MPI_Send(&center, 1, MPI_DOUBLE, neighbor, 0, MPI_COMM_WORLD);
-        MPI_Recv(&bottom, 1, MPI_DOUBLE, neighbor, 0, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+        MPI_Recv(&bottom, 1, MPI_DOUBLE, neighbor, 0, MPI_COMM_WORLD, 0);
         //printf("%2d: send to   %d (%d,%d): %.2f\n", myid, neighbor,I,J,center);
         //printf("%2d: recv from %d (%d,%d): %.2f\n", myid, neighbor,I+1,J,bottom);
       } else {
@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
       if (j==0) {
         neighbor = B[myi][myj-1];
         MPI_Send(&center, 1, MPI_DOUBLE, neighbor, 0, MPI_COMM_WORLD);
-        MPI_Recv(&left, 1, MPI_DOUBLE, neighbor, 0, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+        MPI_Recv(&left, 1, MPI_DOUBLE, neighbor, 0, MPI_COMM_WORLD, 0);
         //printf("%2d: send to   %d (%d,%d): %.2f\n", myid, neighbor,I,J,center);
         //printf("%2d: recv from %d (%d,%d): %.2f\n", myid, neighbor,I,J-1,left);
       } else {
@@ -201,7 +201,7 @@ int main(int argc, char *argv[])
       if (j==bj-1) {
         neighbor = B[myi][myj+1];
         MPI_Send(&center, 1, MPI_DOUBLE, neighbor, 0, MPI_COMM_WORLD);
-        MPI_Recv(&right, 1, MPI_DOUBLE, neighbor, 0, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+        MPI_Recv(&right, 1, MPI_DOUBLE, neighbor, 0, MPI_COMM_WORLD, 0);
         //printf("%2d: send to   %d (%d,%d): %.2f\n", myid, neighbor,I,J,center);
         //printf("%2d: recv from %d (%d,%d): %.2f\n", myid, neighbor,I,J+1,right);
       } else {
