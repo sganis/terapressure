@@ -14,7 +14,7 @@
 
 int main(int argc, char *argv[])
 {
-    int N = 20, M = 30; 	// number of cells N by M
+    int N = 20, M = 30;     // number of cells N by M
     int tpi=16, tpj=18;     // test pressure coordinates
     int tai=7, taj=9;       // test average coordinates
     int i, j;    		    
