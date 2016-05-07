@@ -14,32 +14,32 @@
 
 int main(int argc, char *argv[])
 {
-    int N = 20, M = 30;     // number of cells N by M
-    int tpi=16, tpj=18;     // test pressure coordinates
-    int tai=7, taj=9;       // test average coordinates
-    int i, j;    		    
-    double P[N][M];
-    double A[N][M];
+  int N = 20, M = 30;     // number of cells N by M
+  int tpi=16, tpj=18;     // test pressure coordinates
+  int tai=7, taj=9;       // test average coordinates
+  int i, j;    		    
+  double P[N][M];
+  double A[N][M];
 
-    // initialize with zeros
-    for (i=0; i < N; i++)
-        for (j=0; j < M; j++)  
-                P[i][j] = 0;
-    
-    // compute pressures
-    for (i=1; i < N-1; i++)
-        for (j=1; j < M-1; j++)  
-            P[i][j] = (double)(i+j) * (double)(i*j);
+  // initialize with zeros
+  for (i=0; i < N; i++)
+    for (j=0; j < M; j++)  
+      P[i][j] = 0;
+  
+  // compute pressures
+  for (i=1; i < N-1; i++)
+    for (j=1; j < M-1; j++)  
+      P[i][j] = (double)(i+j) * (double)(i*j);
 
-    // compute average pressures
-    for (i=1; i < N-1; i++)
-        for (j=1; j < M-1; j++) 
-            A[i][j] = ( P[i][j] + P[i-1][j] + P[i+1][j] + P[i][j-1] + P[i][j+1] ) / 5;		
+  // compute average pressures
+  for (i=1; i < N-1; i++)
+    for (j=1; j < M-1; j++) 
+      A[i][j] = ( P[i][j] + P[i-1][j] + P[i+1][j] + P[i][j-1] + P[i][j+1] ) / 5;		
 
-    printf("Preasure at (%2d,%2d): %.2f\n", tpi, tpj, P[tpi][tpj]);
-    printf("Average  at (%2d,%2d): %.2f\n", tai, taj, A[tai][taj]);
+  printf("Preasure at (%2d,%2d): %.2f\n", tpi, tpj, P[tpi][tpj]);
+  printf("Average  at (%2d,%2d): %.2f\n", tai, taj, A[tai][taj]);
 
-    return 0;
+  return 0;
 }
 
 
