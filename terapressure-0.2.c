@@ -30,6 +30,8 @@
 #include <stdlib.h> // malloc, exit
 #include "mpi.h"
 
+#define debug 1
+
 int main(int argc, char *argv[])
 {
   long N=8, M=8;      // number of cells NxM
@@ -52,14 +54,10 @@ int main(int argc, char *argv[])
       if (myid==0) {
         fprintf(stderr, "usage: prog [N M n m]\n");
         fprintf(stderr, "Parameters:\n");
-        fprintf(stderr, "\tN: number of rows or cells in y direction. Defau=
-lt: %ld\n", N);
-        fprintf(stderr, "\tM: number of columns or cells in x direction. De=
-fault: %ld\n", M);
-        fprintf(stderr, "\tn: number of blocks in y direction. Default: %d\=
-n", n);
-        fprintf(stderr, "\tm: number of blocks in x direction. Default %d\n=
-", m);
+        fprintf(stderr, "\tN: number of rows or cells in y direction. Default: %ld\n", N);
+        fprintf(stderr, "\tM: number of columns or cells in x direction. Default: %ld\n", M);
+        fprintf(stderr, "\tn: number of blocks in y direction. Default: %d\n", n);
+        fprintf(stderr, "\tm: number of blocks in x direction. Default %d\n", m);
       }
       MPI_Finalize();
       exit(3);
@@ -92,8 +90,7 @@ n", n);
   }
   if (numprocs != n*m) {
     if (myid==0)
-      fprintf(stderr,"Number of processors must be the same as number of bl=
-ocks: %d\n", n*m);
+      fprintf(stderr,"Number of processors must be the same as number of blocks: %d\n", n*m);
     MPI_Finalize();
     exit(2);
   }
@@ -173,12 +170,14 @@ ocks: %d\n", n*m);
       send_x[j-1] = P[1][j];
     b = B[myi-1][myj];
     if ((myi+myj) % 2 == 0) {
+      // printf("%2d: send %d top row\n", myid, b);
       MPI_Send(send_x, bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD);
-      MPI_Recv(recv_x, bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGN=
-ORE);
+      // printf("%2d: recv %d bottom row\n", myid, b);
+      MPI_Recv(recv_x, bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     } else {
-      MPI_Recv(recv_x, bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGN=
-ORE);
+      // printf("%2d: recv %d bottom row\n", myid, b);
+      MPI_Recv(recv_x, bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      // printf("%2d: send %d top row\n", myid, b);
       MPI_Send(send_x, bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD);
     }
     for (j=1; j < bx+1; j++)
@@ -190,12 +189,14 @@ ORE);
       send_x[j-1] = P[bx][j];
     b = B[myi+1][myj];
     if ((myi+myj) % 2 == 0) {
+      // printf("%2d: send %d bottom row\n", myid, b);
       MPI_Send(send_x, bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD);
-      MPI_Recv(recv_x, bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGN=
-ORE);
+      // printf("%2d: recv %d top row\n", myid, b);
+      MPI_Recv(recv_x, bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     } else {
-      MPI_Recv(recv_x, bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGN=
-ORE);
+      // printf("%2d: recv %d top row\n", myid, b);
+      MPI_Recv(recv_x, bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      // printf("%2d: send %d bottom row\n", myid, b);
       MPI_Send(send_x, bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD);
     }
     for (j=1; j < bx+1; j++)
@@ -207,12 +208,14 @@ ORE);
       send_y[i-1] = P[i][1];
     b = B[myi][myj-1];
     if ((myi+myj) % 2 == 0) {
+      // printf("%2d: send %d left column\n", myid, b);
       MPI_Send(send_y, by, MPI_DOUBLE, b, 0, MPI_COMM_WORLD);
-      MPI_Recv(recv_y, by, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGN=
-ORE);
+      // printf("%2d: recv %d right column\n", myid, b);
+      MPI_Recv(recv_y, by, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     } else {
-      MPI_Recv(recv_y, by, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGN=
-ORE);
+      // printf("%2d: recv %d right column\n", myid, b);
+      MPI_Recv(recv_y, by, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      // printf("%2d: send %d left column\n", myid, b);
       MPI_Send(send_y, by, MPI_DOUBLE, b, 0, MPI_COMM_WORLD);
     }
     for (i=1; i < by+1; i++)
@@ -224,12 +227,14 @@ ORE);
       send_y[i-1] = P[i][by];
     b = B[myi][myj+1];
     if ((myi+myj) % 2 == 0) {
+      // printf("%2d: send %d right column\n", myid, b);
       MPI_Send(send_y, by, MPI_DOUBLE, b, 0, MPI_COMM_WORLD);
-      MPI_Recv(recv_y, by, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGN=
-ORE);
+      // printf("%2d: recv %d left column\n", myid, b);
+      MPI_Recv(recv_y, by, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     } else {
-      MPI_Recv(recv_y, by, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGN=
-ORE);
+      // printf("%2d: recv %d left column\n", myid, b);
+      MPI_Recv(recv_y, by, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      // printf("%2d: send %d right column\n", myid, b);
       MPI_Send(send_y, by, MPI_DOUBLE, b, 0, MPI_COMM_WORLD);
     }
     for (i=1; i < by+1; i++)
@@ -254,8 +259,7 @@ ORE);
       J = myj * bx + j - 1;
       if ( I==0 || I==N-1 || J==0 || J==M-1 )
         continue;
-      A[i][j] = ( P[i][j] + P[i-1][j] + P[i+1][j] + P[i][j-1] + P[i][j+1]=
- ) / 5;
+      A[i][j] = ( P[i][j] + P[i-1][j] + P[i+1][j] + P[i][j-1] + P[i][j+1] ) / 5;
       if (I==tai && J==taj)
         average = A[i][j];
     }
