@@ -32,7 +32,8 @@
 #include <stdlib.h> // malloc, exit
 #include <mpi.h>
 
-void print(double **array, int rows, int cols) {
+void print(double **array, int rows, int cols) 
+{
   int i, j;
   for (i=0; i < rows; i++) {
     for (j=0; j < cols; j++)
@@ -43,7 +44,8 @@ void print(double **array, int rows, int cols) {
 
 typedef enum { RED=31, GREEN=32, BLUE=34, YELLOW=33 } Color;
 
-void colorize(FILE* stream, Color color) {
+void colorize(FILE* stream, Color color) 
+{
   if (color > 0)
     fprintf(stream,"\x1b[%d;1m",color);
   else
@@ -51,7 +53,8 @@ void colorize(FILE* stream, Color color) {
 }
 
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) 
+{
   int N=20, M=30;           // number of cells NxM
   int n=2,  m=3;            // number of blocks nxm
   int tpi=16, tpj=18;       // test pressure coordinates
