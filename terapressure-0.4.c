@@ -101,8 +101,6 @@ int main(int argc, char *argv[])
 
   by = N/n;
   bx = M/m;
-  int width = bx + 2;
-  int height = by + 2;
 
   MPI_Type_vector(by, 1, bx+2, MPI_DOUBLE, &col_type);
   MPI_Type_commit(&col_type);
@@ -118,9 +116,9 @@ int main(int argc, char *argv[])
     printf("Number of blocks: %d (%d x %d)\n", n*m, n, m);
     printf("Number of processors %d\n", numprocs);
     printf("Block size: (%d x %d)\n", by, bx);
-    printf("Block size extended (height,width): (%d x %d)\n", height, width);
+    printf("Block size extended: (%d x %d)\n", by+2, bx+2);
     printf("Aprox. memory needed per processor: %.2f GB\n", 
-      height*width*2*sizeof(double)/1024.0/1024.0/1024.0);
+      (by+2)*(bx+2)*2*sizeof(double)/1024.0/1024.0/1024.0);
   }
 
   // validate parameters
