@@ -32,7 +32,7 @@
 #include <stdlib.h> // malloc, exit
 #include <mpi.h>
 
-void print(double **array, int rows, int cols)
+void print(double **array, int rows, int cols) 
 {
   int i, j;
   for (i=0; i < rows; i++) {
@@ -42,26 +42,39 @@ void print(double **array, int rows, int cols)
   }
 }
 
-int main(int argc, char *argv[])
+typedef enum { RED=31, GREEN=32, BLUE=34, YELLOW=33 } Color;
+
+void colorize(FILE* stream, Color color) 
 {
-  int N=20, M=30;       // number of cells NxM
-  int n=2,  m=3;        // number of blocks nxm
-  int tpi=16, tpj=18;   // test pressure coordinates
-  int tai=7, taj=9;     // test average coordinates
-  //int N=8, M=8;       // number of cells NxM
-  //int n=2,  m=2;      // number of blocks nxm
-  //int tpi=3, tpj=3;   // test pressure coordinates
-  //int tai=3, taj=3;   // test average coordinates 
-  int i, j, I, J;       // local and global i,j
-  int myi, myj;         // my i,j in neighbor map
-  int by, bx;           // block size in y and x direction
-  int numprocs, myid;   // number of processors and my rank id
-  double **P, **A;      // 2D array of pressures and averages
- 
+  if (color > 0)
+    fprintf(stream,"\x1b[%d;1m",color);
+  else
+    fprintf(stream,"\x1b[0m");
+}
+
+
+int main(int argc, char *argv[]) 
+{
+  int N=20, M=30;           // number of cells NxM
+  int n=2,  m=3;            // number of blocks nxm
+  int tpi=16, tpj=18;       // test pressure coordinates
+  int tai=7, taj=9;         // test average coordinates
+  //int N=8, M=8;           // number of cells NxM
+  //int n=2,  m=2;          // number of blocks nxm
+  //int tpi=3, tpj=3;       // test pressure coordinates
+  //int tai=3, taj=3;       // test average coordinates 
+  int i, j, I, J;           // local and global i,j
+  int myi, myj;             // my i,j in neighbor map
+  int by, bx;               // block size in y and x direction
+  int numprocs, myid;       // number of processors and my rank id
+  double **P, **A;          // 2D array of pressures and averages
+  
+  MPI_Datatype col_type;    // to send left and right columns
+  MPI_Status status;  
   MPI_Init(&argc, &argv);
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-
+  
   // get command line arguments if any
   if (argc > 1) {
     if (argc != 5) {
@@ -91,10 +104,16 @@ int main(int argc, char *argv[])
   int width = bx + 2;
   int height = by + 2;
 
+  MPI_Type_vector(by, 1, bx+2, MPI_DOUBLE, &col_type);
+  MPI_Type_commit(&col_type);
+
   // start message
   if (myid==0) {
-    printf("Terapressure %s\n", VERSION);
-    printf("=================\n");
+    colorize(stdout, BLUE);
+    printf("===================\n");
+    printf(" Terapressure %s\n", VERSION);
+    printf("===================\n");
+    colorize(stdout, 0);
     printf("Number of cells: %lu (%lu x %lu)\n", N*M, N, M);
     printf("Number of blocks: %d (%d x %d)\n", n*m, n, m);
     printf("Number of processors %d\n", numprocs);
@@ -106,16 +125,24 @@ int main(int argc, char *argv[])
 
   // validate parameters
   if (N % n != 0 || M % m != 0) {
-    if(myid==0)
+    if(myid==0) {
+      colorize(stderr, RED);  
+      fprintf(stderr, "Error: ");
       fprintf(stderr,"Number of blocks in x or y axis do not fit.\n");
+      colorize(stderr, 0);
+    }
     MPI_Finalize();
     exit(1);
   }
   if (numprocs != n*m) {
-    if (myid==0)
+    if (myid==0) {
+      colorize(stderr, RED); 
+      fprintf(stderr, "Error: ");
       fprintf(stderr,
         "Number of processors must be the same as number of blocks: %d\n",
         n*m);
+      colorize(stderr, 0); 
+    }
     MPI_Finalize();
     exit(2);
   }
@@ -123,21 +150,13 @@ int main(int argc, char *argv[])
   double t = MPI_Wtime();
 
   // memory allocation
-  //P = malloc(sizeof(double*) * width * height);
-  //A = malloc(sizeof(double*) * width * height);
   int B[n][m];
-  // P = malloc(sizeof(double*) * (by + 2) * (bx + 2));
-  // for (i=0; i < by+2; i++)
-  //   P[i] = malloc(sizeof(double) * (bx + 2));
-  // A = malloc(sizeof(double*) * (by + 2));
-  // for (i=0; i < by+2; i++)
-  //   A[i] = malloc(sizeof(double) * (bx + 2));
-  P = malloc(sizeof(double*) * (by + 2));        /*allocating pointers */
-  P[0] = malloc(sizeof(double) * (by + 2) * (bx + 2));  /* allocating data */
+  P = malloc(sizeof(double*) * (by + 2));
+  P[0] = malloc(sizeof(double) * (by + 2) * (bx + 2)); 
   for(i=1; i < by+2; i++)
     P[i] = &(P[0][i * (bx+2)]);
-  A = malloc(sizeof(double*) * (by + 2));        /*allocating pointers */
-  A[0] = malloc(sizeof(double) * (by + 2) * (bx + 2));  /* allocating data */
+  A = malloc(sizeof(double*) * (by + 2));
+  A[0] = malloc(sizeof(double) * (by + 2) * (bx + 2));
   for(i=1; i < by+2; i++)
     A[i] = &(A[0][i * (bx+2)]);
   
@@ -186,8 +205,8 @@ int main(int argc, char *argv[])
   // average pressure
   //double send_x[bx];
   //double recv_x[bx];
-  double send_y[by];
-  double recv_y[by];
+  //double send_y[by];
+  //double recv_y[by];
 
   // global I start, I end, J start, J end
   int Is = myi * by;
@@ -205,10 +224,10 @@ int main(int argc, char *argv[])
       // printf("%2d: send %d top row\n", myid, b);
       MPI_Send(&P[1][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD);
       // printf("%2d: recv %d bottom row\n", myid, b);
-      MPI_Recv(&P[0][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(&P[0][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, &status);
     } else {
       // printf("%2d: recv %d bottom row\n", myid, b);
-      MPI_Recv(&P[0][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(&P[0][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, &status);
       // printf("%2d: send %d top row\n", myid, b);
       MPI_Send(&P[1][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD);
     }
@@ -230,10 +249,10 @@ int main(int argc, char *argv[])
       // printf("%2d: send %d bottom row\n", myid, b);
       MPI_Send(&P[by][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD);
       // printf("%2d: recv %d top row\n", myid, b);
-      MPI_Recv(&P[by+1][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(&P[by+1][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, &status);
     } else {
       // printf("%2d: recv %d top row\n", myid, b);
-      MPI_Recv(&P[by+1][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(&P[by+1][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, &status);
       // printf("%2d: send %d bottom row\n", myid, b);
       MPI_Send(&P[by][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD);
     }
@@ -250,41 +269,41 @@ int main(int argc, char *argv[])
   }
   // left column
   if (Js > 0) {
-    for (i=1; i < by+1; i++)
-      send_y[i-1] = P[i][1];
+    // for (i=1; i < by+1; i++)
+    //  send_y[i-1] = P[i][1];
     b = B[myi][myj-1];
     if ((myi+myj) % 2 == 0) {
       // printf("%2d: send %d left column\n", myid, b);
-      MPI_Send(send_y, by, MPI_DOUBLE, b, 0, MPI_COMM_WORLD);
+      MPI_Send(&P[1][1], 1, col_type, b, 0, MPI_COMM_WORLD);
       // printf("%2d: recv %d right column\n", myid, b);
-      MPI_Recv(recv_y, by, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(&P[1][0], 1, col_type, b, 0, MPI_COMM_WORLD, &status);
     } else {
       // printf("%2d: recv %d right column\n", myid, b);
-      MPI_Recv(recv_y, by, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(&P[1][0], 1, col_type, b, 0, MPI_COMM_WORLD, &status);
       // printf("%2d: send %d left column\n", myid, b);
-      MPI_Send(send_y, by, MPI_DOUBLE, b, 0, MPI_COMM_WORLD);
+      MPI_Send(&P[1][1], 1, col_type, b, 0, MPI_COMM_WORLD);
     }
-    for (i=1; i < by+1; i++)
-      P[i][0] = recv_y[i-1];
+    // for (i=1; i < by+1; i++)
+    //   P[i][0] = recv_y[i-1];
   }
   // right column
   if (Je < M-1) {
-    for (i=1; i < by+1; i++)
-      send_y[i-1] = P[i][bx];
+    // for (i=1; i < by+1; i++)
+    //   send_y[i-1] = P[i][bx];
     b = B[myi][myj+1];
     if ((myi+myj) % 2 == 0) {
       // printf("%2d: send %d right column\n", myid, b);
-      MPI_Send(send_y, by, MPI_DOUBLE, b, 0, MPI_COMM_WORLD);
+      MPI_Send(&P[1][bx], 1, col_type, b, 0, MPI_COMM_WORLD);
       // printf("%2d: recv %d left column\n", myid, b);
-      MPI_Recv(recv_y, by, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(&P[1][bx+1], 1, col_type, b, 0, MPI_COMM_WORLD, &status);
     } else {
       // printf("%2d: recv %d left column\n", myid, b);
-      MPI_Recv(recv_y, by, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(&P[1][bx+1], 1, col_type, b, 0, MPI_COMM_WORLD, &status);
       // printf("%2d: send %d right column\n", myid, b);
-      MPI_Send(send_y, by, MPI_DOUBLE, b, 0, MPI_COMM_WORLD);
+      MPI_Send(&P[1][bx], 1, col_type, b, 0, MPI_COMM_WORLD);
     }
-    for (i=1; i < by+1; i++)
-      P[i][bx+1] = recv_y[i-1];
+    // for (i=1; i < by+1; i++)
+    //   P[i][bx+1] = recv_y[i-1];
   }
 
   // print extended presures
@@ -313,45 +332,44 @@ int main(int argc, char *argv[])
   //   print(A, by+2, bx+2);
   // }
 
-  // test
-  // int ok = 1;
-  // double expected_avg = 0.0;
+  //test
+  /*
+  int ok = 1;
+  double expected_avg = 0.0;
 
-  // for (i=0; i < by+2; i++) {
-  //   I = myi * by + i - 1;
-  //   for (j=0; j < bx+2; j++) {
-  //     J = myj * bx + j - 1;
-  //     if ( I<=0 || I>=N-1 || J<=0 || J>=M-1 )
-  //       continue;
-  //     P[i][j] = (double)(I+J) * (double)(I*J);
-  //   }
-  // }
-  
-  // if (myid==0) {
-  //   printf("%d: Extended pressures:\n", myid);
-  //   print(P, by+2, bx+2);
-  // }
-  
-  // for (i=1; i < by+1; i++) {
-  //   I = myi * by + i - 1;
-  //   for (j=1; j < bx+1; j++) {
-  //     J = myj * bx + j - 1;
-  //     if ( I==0 || I==N-1 || J==0 || J==M-1 )
-  //       continue;
-  //     expected_avg = A[i][j];
-  //     A[i][j] = ( P[i][j] + P[i-1][j] + P[i+1][j] + P[i][j-1] + P[i][j+1] ) / 5;
-  //     if (myid==0 && expected_avg != A[i][j]) {
-  //       printf("%d: Average incorrect at (%d,%d): expected: %.2f, actual: %.2f\n",
-  //                  myid,I,J,expected_avg,A[i][j]);
-  //       ok = 0;
-  //       break;
-  //     }
-  //   }
-  //   if (!ok)
-  //     break;
-  // }
-  
-
+  for (i=0; i < by+2; i++) {
+    I = myi * by + i - 1;
+    for (j=0; j < bx+2; j++) {
+      J = myj * bx + j - 1;
+      if ( I<=0 || I>=N-1 || J<=0 || J>=M-1 )
+        continue;
+      P[i][j] = (double)(I+J) * (double)(I*J);
+    }
+  }
+   
+  for (i=1; i < by+1; i++) {
+    I = myi * by + i - 1;
+    for (j=1; j < bx+1; j++) {
+      J = myj * bx + j - 1;
+      if ( I==0 || I==N-1 || J==0 || J==M-1 )
+        continue;
+      expected_avg = A[i][j];
+      A[i][j] = ( P[i][j] + P[i-1][j] + P[i+1][j] + P[i][j-1] + P[i][j+1] ) / 5;
+      if (myid==0 && expected_avg != A[i][j]) {
+        colorize(stderr, RED);
+        fprintf(stderr, "Error: ");
+        fprintf(stderr, 
+          "%d: Average incorrect at (%d,%d): expected: %.2f, actual: %.2f\n",
+          myid,I,J,expected_avg,A[i][j]);
+        colorize(stderr, 0);
+        ok = 0;
+        break;
+      }
+    }
+    if (!ok)
+      break;
+  }
+  */
   // cleanup memory
   free(P[0]);
   free(P);
@@ -359,16 +377,25 @@ int main(int argc, char *argv[])
   free(A);
   
   // report result
-  if (pressure > -1)
-    printf("Preasure at (%2d,%2d): %.2f computed by processor %d\n",
-      tpi, tpj, pressure, myid);
-  if (average > -1)
-    printf("Average  at (%2d,%2d): %.2f computed by processor %d\n",
-      tai, taj, average, myid);
+  if (pressure > -1) {
+    printf("%d: Preasure at (%2d,%2d): ", myid, tpi, tpj);
+    colorize(stdout, GREEN);
+    printf("%.2f\n", pressure);
+    colorize(stdout, 0);
+    fflush(stdout);
+  }
+  if (average > -1) {
+    printf("%d: Average  at (%2d,%2d): ", myid, tai, taj);
+    colorize(stdout, GREEN);
+    printf("%.2f\n", average);
+    colorize(stdout, 0);
+    fflush(stdout);
+  }
 
   MPI_Barrier(MPI_COMM_WORLD);
-  if (myid==0)
+  if (myid==0) {
     printf("Time elapsed: %.2f seconds.\n", MPI_Wtime()-t);
+  }
   MPI_Finalize();
 
   return 0;
