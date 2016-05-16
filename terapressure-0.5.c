@@ -77,6 +77,9 @@ int main(int argc, char *argv[])
   if (argc > 1) {
     if (argc != 5) {
       if (myid==0) {
+        colorize(stderr,YELLOW);
+        fprintf(stderr, "Wrong parameters.\n");
+        colorize(stderr,0);
         fprintf(stderr, "usage: prog [N M n m]\n");
         fprintf(stderr, "Parameters:\n");
         fprintf(stderr, 
@@ -104,6 +107,30 @@ int main(int argc, char *argv[])
   MPI_Type_vector(by, 1, bx+2, MPI_DOUBLE, &col_type);
   MPI_Type_commit(&col_type);
 
+  // validate parameters
+  if (N % n != 0 || M % m != 0) {
+    if(myid==0) {
+      colorize(stderr, YELLOW);  
+      fprintf(stderr, "Wrong arguments: ");
+      fprintf(stderr,"Number of blocks in x or y axis do not fit.\n");
+      colorize(stderr, 0);
+    }
+    MPI_Finalize();
+    exit(1);
+  }
+  if (numprocs != n*m) {
+    if (myid==0) {
+      colorize(stderr, YELLOW); 
+      fprintf(stderr, "Wrong arguments: ");
+      fprintf(stderr,
+        "Number of processors must be the same as number of blocks: %d\n",
+        n*m);
+      colorize(stderr, 0); 
+    }
+    MPI_Finalize();
+    exit(2);
+  }
+
   // start message
   if (myid==0) {
     colorize(stdout, BLUE);
@@ -118,30 +145,6 @@ int main(int argc, char *argv[])
     printf("Block size extended: (%d x %d)\n", by+2, bx+2);
     printf("Aprox. memory needed per processor: %.2f GB\n", 
       (by+2)*(bx+2)*2*sizeof(double)/1024.0/1024.0/1024.0);
-  }
-
-  // validate parameters
-  if (N % n != 0 || M % m != 0) {
-    if(myid==0) {
-      colorize(stderr, RED);  
-      fprintf(stderr, "Error: ");
-      fprintf(stderr,"Number of blocks in x or y axis do not fit.\n");
-      colorize(stderr, 0);
-    }
-    MPI_Finalize();
-    exit(1);
-  }
-  if (numprocs != n*m) {
-    if (myid==0) {
-      colorize(stderr, RED); 
-      fprintf(stderr, "Error: ");
-      fprintf(stderr,
-        "Number of processors must be the same as number of blocks: %d\n",
-        n*m);
-      colorize(stderr, 0); 
-    }
-    MPI_Finalize();
-    exit(2);
   }
 
   double t = MPI_Wtime();
@@ -205,77 +208,46 @@ int main(int argc, char *argv[])
   int Je = Js + bx - 1;
   int b; // neighbor
 
-  MPI_Request send_top;
-  MPI_Request send_bottom;
-  MPI_Request send_left;
-  MPI_Request send_right;
-  MPI_Request recv_top;
-  MPI_Request recv_bottom;
-  MPI_Request recv_left;
-  MPI_Request recv_right;
-  MPI_Status status;  
+  MPI_Request req_t[2];
+  MPI_Request req_b[2];
+  MPI_Request req_l[2];
+  MPI_Request req_r[2];
+  MPI_Status status[2];  
   
   // top row
   if (Is > 0) {
     b = B[myi-1][myj];
-    if ((myi+myj) % 2 == 0) {
-      MPI_Isend(&P[1][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, &send_top);
-      MPI_Irecv(&P[0][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, &recv_top);
-    } else {
-      MPI_Irecv(&P[0][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, &recv_top);
-      MPI_Isend(&P[1][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, &send_top);
-    }
+    MPI_Irecv(&P[0][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, &req_t[0]);
+    MPI_Isend(&P[1][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, &req_t[1]);
   }
   // bottom row
   if (Ie < N-1) {
     b = B[myi+1][myj];
-    if ((myi+myj) % 2 == 0) {
-      MPI_Isend(&P[by][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, &send_bottom);
-      MPI_Irecv(&P[by+1][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, &recv_bottom);
-    } else {
-      MPI_Irecv(&P[by+1][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, &recv_bottom);
-      MPI_Isend(&P[by][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, &send_bottom);
-    }
+    MPI_Irecv(&P[by+1][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, &req_b[0]);
+    MPI_Isend(&P[by][1], bx, MPI_DOUBLE, b, 0, MPI_COMM_WORLD, &req_b[1]);
   }
   // left column
   if (Js > 0) {
     b = B[myi][myj-1];
-    if ((myi+myj) % 2 == 0) {
-      MPI_Isend(&P[1][1], 1, col_type, b, 0, MPI_COMM_WORLD, &send_left);
-      MPI_Irecv(&P[1][0], 1, col_type, b, 0, MPI_COMM_WORLD, &recv_left);
-    } else {
-      MPI_Irecv(&P[1][0], 1, col_type, b, 0, MPI_COMM_WORLD, &recv_left);
-      MPI_Isend(&P[1][1], 1, col_type, b, 0, MPI_COMM_WORLD, &send_left);
-    }
+    MPI_Irecv(&P[1][0], 1, col_type, b, 0, MPI_COMM_WORLD, &req_l[0]);
+    MPI_Isend(&P[1][1], 1, col_type, b, 0, MPI_COMM_WORLD, &req_l[1]);
   }
   // right column
   if (Je < M-1) {
     b = B[myi][myj+1];
-    if ((myi+myj) % 2 == 0) {
-      MPI_Isend(&P[1][bx], 1, col_type, b, 0, MPI_COMM_WORLD, &send_right);
-      MPI_Irecv(&P[1][bx+1], 1, col_type, b, 0, MPI_COMM_WORLD, &recv_right);
-    } else {
-      MPI_Irecv(&P[1][bx+1], 1, col_type, b, 0, MPI_COMM_WORLD, &recv_right);
-      MPI_Isend(&P[1][bx], 1, col_type, b, 0, MPI_COMM_WORLD, &send_right);
-    }
+    MPI_Irecv(&P[1][bx+1], 1, col_type, b, 0, MPI_COMM_WORLD, &req_r[0]);
+    MPI_Isend(&P[1][bx], 1, col_type, b, 0, MPI_COMM_WORLD, &req_r[1]);
   }
   
-  if (Is > 0) {
-    MPI_Wait(&send_top, &status);
-    MPI_Wait(&recv_top, &status);
-  }
-  if (Ie < N-1) {
-    MPI_Wait(&send_bottom, &status);
-    MPI_Wait(&recv_bottom, &status);
-  }
-  if (Js > 0) {
-    MPI_Wait(&send_left, &status);
-    MPI_Wait(&recv_left, &status);
-  }
-  if (Je < M-1) {
-    MPI_Wait(&send_right, &status);
-    MPI_Wait(&recv_right, &status);
-  }
+  if (Is > 0) 
+    MPI_Waitall(2, req_t, status);
+  if (Ie < N-1) 
+    MPI_Waitall(2, req_b, status);
+  if (Js > 0) 
+    MPI_Waitall(2, req_l, status);
+  if (Je < M-1) 
+    MPI_Waitall(2, req_r, status);
+  
 
   // print extended presures
   // if (myid==0) {
@@ -342,13 +314,13 @@ int main(int argc, char *argv[])
       break;
   }
   
-  
   // cleanup memory
   free(P[0]);
   free(P);
   free(A[0]);
   free(A);
-  
+  MPI_Type_free(&col_type);
+
   // report result
   if (pressure > -1) {
     printf("%d: Preasure at (%2d,%2d): ", myid, tpi, tpj);

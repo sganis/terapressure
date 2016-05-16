@@ -279,7 +279,7 @@ int main(int argc, char *argv[])
   // }
 
   
-  /* 
+   
   //test
   int ok = 1;
   double expected_avg = 0.0;
@@ -316,7 +316,7 @@ int main(int argc, char *argv[])
     if (!ok)
       break;
   }
-  */
+  
   
   // cleanup memory
   free(P[0]);
